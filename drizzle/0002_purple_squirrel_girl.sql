@@ -1,0 +1,41 @@
+CREATE TABLE `roaster_reviews` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`roaster_id` int NOT NULL,
+	`user_id` int NOT NULL,
+	`rating` int NOT NULL,
+	`title` varchar(255),
+	`review` text,
+	`beans_purchased` varchar(255),
+	`visit_date` timestamp,
+	`helpful_count` int DEFAULT 0,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `roaster_reviews_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `roasters` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`description` text,
+	`address` varchar(500) NOT NULL,
+	`city` varchar(100) NOT NULL,
+	`state` varchar(50),
+	`country` varchar(100) NOT NULL,
+	`zip_code` varchar(20),
+	`latitude` varchar(50) NOT NULL,
+	`longitude` varchar(50) NOT NULL,
+	`phone` varchar(50),
+	`email` varchar(320),
+	`website` varchar(500),
+	`bean_origins` text,
+	`roast_styles` text,
+	`specialties` text,
+	`hours` text,
+	`logo_url` text,
+	`photo_url` text,
+	`average_rating` int DEFAULT 0,
+	`review_count` int DEFAULT 0,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `roasters_id` PRIMARY KEY(`id`)
+);

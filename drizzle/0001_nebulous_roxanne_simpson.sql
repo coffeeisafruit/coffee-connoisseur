@@ -1,0 +1,41 @@
+CREATE TABLE `brew_entries` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`user_id` int NOT NULL,
+	`date` timestamp NOT NULL DEFAULT (now()),
+	`bean_name` varchar(255) NOT NULL,
+	`origin` varchar(255) NOT NULL,
+	`roast_level` enum('light','medium','medium_dark','dark') NOT NULL,
+	`grind_size` enum('extra_fine','fine','medium','coarse') NOT NULL,
+	`brew_method` enum('pour_over','french_press','aeropress','espresso','drip','cold_brew') NOT NULL,
+	`water_temp` varchar(50),
+	`brew_time` varchar(50),
+	`coffee_amount` varchar(50),
+	`water_amount` varchar(50),
+	`rating` int NOT NULL DEFAULT 0,
+	`tasting_notes` text,
+	`observations` text,
+	`photo_url` text,
+	`photo_key` text,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `brew_entries_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `user_profiles` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`user_id` int NOT NULL,
+	`flavor_preference` varchar(100),
+	`roast_preference` varchar(100),
+	`taste_sensitivity` varchar(100),
+	`acidity_preference` varchar(100),
+	`brewing_method` varchar(100),
+	`origin_interest` varchar(100),
+	`sweetness_level` varchar(100),
+	`body_preference` varchar(100),
+	`profile_type` varchar(255),
+	`profile_description` text,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `user_profiles_id` PRIMARY KEY(`id`),
+	CONSTRAINT `user_profiles_user_id_unique` UNIQUE(`user_id`)
+);
