@@ -1,0 +1,70 @@
+# DigitalOcean App Platform spec (migration M6.1).
+# Deploy: doctl apps create --spec .do/app.yaml   (secrets set at create / in dashboard).
+name: coffee-connoisseur
+region: nyc
+
+services:
+  - name: web
+    github:
+      repo: coffeeisafruit/coffee-connoisseur
+      branch: main
+      deploy_on_push: true
+    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    run_command: pnpm start
+    environment_slug: node-js
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      http_path: /
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      # Managed MySQL connection + CA injected from the attached cluster.
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${coffee-connoisseur-db.DATABASE_URL}
+      - key: DB_CA_CERT
+        scope: RUN_AND_BUILD_TIME
+        value: ${coffee-connoisseur-db.CA_CERT}
+      - key: BETTER_AUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: BETTER_AUTH_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+      - key: OPENROUTER_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      # Maps use Leaflet/OSM (no key). DO Spaces intentionally omitted this round
+      # (brew-photo upload degrades gracefully until SPACES_* are added).
+
+# Run DB migrations before each deploy (the authorized migration path).
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: coffeeisafruit/coffee-connoisseur
+      branch: main
+    build_command: corepack enable && pnpm install --frozen-lockfile
+    run_command: pnpm db:push
+    environment_slug: node-js
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${coffee-connoisseur-db.DATABASE_URL}
+      - key: DB_CA_CERT
+        scope: RUN_TIME
+        value: ${coffee-connoisseur-db.CA_CERT}
+
+# Attach the existing managed MySQL cluster (provisioned via doctl).
+databases:
+  - name: coffee-connoisseur-db
+    engine: MYSQL
+    production: true
+    cluster_name: coffee-connoisseur-db

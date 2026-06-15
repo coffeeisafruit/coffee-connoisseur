@@ -6,15 +6,14 @@ type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
 function ctxFor(userId = 91): TrpcContext {
   const user: AuthenticatedUser = {
-    id: userId,
-    openId: `photo-user-${userId}`,
-    email: `p${userId}@example.com`,
-    name: `Photo User ${userId}`,
-    loginMethod: "manus",
+    id: String(userId),
+    name: `Test User ${String(userId)}`,
+    email: `${String(userId)}@example.com`,
+    emailVerified: true,
+    image: null,
     role: "user",
     createdAt: new Date(),
     updatedAt: new Date(),
-    lastSignedIn: new Date(),
   };
   return {
     user,

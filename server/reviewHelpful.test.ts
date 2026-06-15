@@ -5,17 +5,16 @@ import * as roastersDb from "./roasters";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(userId: number = 1): TrpcContext {
+function createAuthContext(userId: string | number = 1): TrpcContext {
   const user: AuthenticatedUser = {
-    id: userId,
-    openId: `test-user-${userId}`,
-    email: `test${userId}@example.com`,
-    name: `Test User ${userId}`,
-    loginMethod: "manus",
+    id: String(userId),
+    name: `Test User ${String(userId)}`,
+    email: `${String(userId)}@example.com`,
+    emailVerified: true,
+    image: null,
     role: "user",
     createdAt: new Date(),
     updatedAt: new Date(),
-    lastSignedIn: new Date(),
   };
   return {
     user,
@@ -24,7 +23,7 @@ function createAuthContext(userId: number = 1): TrpcContext {
   };
 }
 
-async function seedRoasterWithReview(authorId: number) {
+async function seedRoasterWithReview(authorId: string | number) {
   const roasterId = await roastersDb.createRoaster({
     name: "Helpful Test Roasters",
     address: "1 Test St",
@@ -35,7 +34,7 @@ async function seedRoasterWithReview(authorId: number) {
   });
   const reviewId = await roastersDb.createReview({
     roasterId,
-    userId: authorId,
+    userId: String(authorId),
     rating: 5,
     review: "Great beans",
   });

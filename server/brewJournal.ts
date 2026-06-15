@@ -5,7 +5,7 @@ import { getDb } from "./db";
 /**
  * Get all brew entries for a specific user
  */
-export async function getUserBrewEntries(userId: number) {
+export async function getUserBrewEntries(userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -21,7 +21,7 @@ export async function getUserBrewEntries(userId: number) {
 /**
  * Get a single brew entry by ID (with user ownership check)
  */
-export async function getBrewEntryById(entryId: number, userId: number) {
+export async function getBrewEntryById(entryId: number, userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -54,7 +54,7 @@ export async function createBrewEntry(entry: InsertBrewEntry) {
  */
 export async function updateBrewEntry(
   entryId: number,
-  userId: number,
+  userId: string,
   updates: Partial<InsertBrewEntry>
 ) {
   const db = await getDb();
@@ -73,7 +73,7 @@ export async function updateBrewEntry(
 /**
  * Delete a brew entry
  */
-export async function deleteBrewEntry(entryId: number, userId: number) {
+export async function deleteBrewEntry(entryId: number, userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -89,7 +89,7 @@ export async function deleteBrewEntry(entryId: number, userId: number) {
 /**
  * Get brew entries filtered by brew method
  */
-export async function getBrewEntriesByMethod(userId: number, brewMethod: string) {
+export async function getBrewEntriesByMethod(userId: string, brewMethod: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");

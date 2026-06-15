@@ -144,7 +144,7 @@ export async function createReview(review: InsertRoasterReview) {
  * `roaster_reviews.helpful_count` only on the user's FIRST vote.
  * Returns whether the count changed and the resulting count.
  */
-export async function markReviewHelpful(reviewId: number, userId: number) {
+export async function markReviewHelpful(reviewId: number, userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -200,7 +200,7 @@ export async function markReviewHelpful(reviewId: number, userId: number) {
 /**
  * Check if user has already reviewed a roaster
  */
-export async function hasUserReviewed(roasterId: number, userId: number) {
+export async function hasUserReviewed(roasterId: number, userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");

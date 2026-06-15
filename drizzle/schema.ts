@@ -1,29 +1,62 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+import { boolean, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
+/* ───────────────────────── Better Auth tables (migration M5) ─────────────────────────
+ * Owned by Better Auth (drizzle adapter). Identity system of record: `user.id` is a
+ * string (UUID). Feature tables migrate their userId columns to varchar(36) in M5.2.
  */
-export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
-  id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
+export const user = mysqlTable("user", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  // Authorization role (Better Auth additionalField) — preserves admin tier.
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
+export type AuthUser = typeof user.$inferSelect;
+
+export const session = mysqlTable("session", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+});
+
+export const account = mysqlTable("account", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export const verification = mysqlTable("verification", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  identifier: varchar("identifier", { length: 255 }).notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+// (Migration M5.2) The Manus `users` table was removed — Better Auth's `user`
+// table (above) is now the identity system of record. Feature tables key
+// `userId` as varchar(36) referencing `user.id`.
 
 /**
  * Brew journal entries table
@@ -31,7 +64,7 @@ export type InsertUser = typeof users.$inferInsert;
  */
 export const brewEntries = mysqlTable("brew_entries", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
   date: timestamp("date").defaultNow().notNull(),
   
   // Bean information
@@ -69,7 +102,7 @@ export type InsertBrewEntry = typeof brewEntries.$inferInsert;
  */
 export const userProfiles = mysqlTable("user_profiles", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull().unique(),
+  userId: varchar("user_id", { length: 36 }).notNull().unique(),
   
   // Quiz answers
   flavorPreference: varchar("flavor_preference", { length: 100 }),
@@ -145,7 +178,7 @@ export type InsertRoaster = typeof roasters.$inferInsert;
 export const roasterReviews = mysqlTable("roaster_reviews", {
   id: int("id").autoincrement().primaryKey(),
   roasterId: int("roaster_id").notNull(),
-  userId: int("user_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
   
   rating: int("rating").notNull(), // 1-5 stars
   title: varchar("title", { length: 255 }),
@@ -175,7 +208,7 @@ export const reviewHelpfulVotes = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     reviewId: int("review_id").notNull(),
-    userId: int("user_id").notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   table => ({

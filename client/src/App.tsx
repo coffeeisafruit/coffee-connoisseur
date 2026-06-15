@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import RequireAuth from "./components/RequireAuth";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Login from "./pages/Login";
 import Quiz from "./pages/Quiz";
 import Profile from "./pages/Profile";
 import Journal from "./pages/Journal";
@@ -16,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path="/login" component={Login} />
       {/* Protected routes (Story 2.1 / FR-14): guarded before data loads */}
       <Route path="/quiz">{() => <RequireAuth><Quiz /></RequireAuth>}</Route>
       <Route path="/profile">{() => <RequireAuth><Profile /></RequireAuth>}</Route>
