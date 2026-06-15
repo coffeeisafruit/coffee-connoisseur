@@ -53,7 +53,7 @@ export const appRouter = router({
         rating: z.number().min(0).max(5),
         tastingNotes: z.string().optional(),
         observations: z.string().optional(),
-        photoData: z.string().optional(), // Base64 encoded image
+        photoData: z.string().max(15_000_000).optional(), // Base64 image (~11MB cap)
       }))
       .mutation(async ({ ctx, input }) => {
         let photoUrl: string | undefined;
@@ -97,13 +97,32 @@ export const appRouter = router({
         rating: z.number().min(0).max(5).optional(),
         tastingNotes: z.string().optional(),
         observations: z.string().optional(),
+        photoData: z.string().max(15_000_000).optional(), // Base64 image (~11MB cap) — replaces existing photo
+        removePhoto: z.boolean().optional(), // Clears the existing photo
       }))
       .mutation(async ({ ctx, input }) => {
-        const { id, ...updates } = input;
-        await brewJournalDb.updateBrewEntry(id, ctx.user.id, updates);
+        const { id, photoData, removePhoto, ...rest } = input;
+        const updates: Record<string, unknown> = { ...rest };
+
+        // Story 1.1 / FR-13: photo edit on update.
+        if (photoData) {
+          const base64Data = photoData.split(",")[1] || photoData;
+          const buffer = Buffer.from(base64Data, "base64");
+          const timestamp = Date.now();
+          const randomSuffix = Math.random().toString(36).substring(7);
+          const photoKey = `brew-photos/${ctx.user.id}/${timestamp}-${randomSuffix}.jpg`;
+          const result = await storagePut(photoKey, buffer, "image/jpeg");
+          updates.photoUrl = result.url;
+          updates.photoKey = photoKey;
+        } else if (removePhoto) {
+          updates.photoUrl = null;
+          updates.photoKey = null;
+        }
+
+        await brewJournalDb.updateBrewEntry(id, ctx.user.id, updates as any);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -163,6 +182,13 @@ export const appRouter = router({
         });
 
         return { id: reviewId };
+      }),
+
+    // Mark a review helpful (Story 3.1 / FR-15) — idempotent per user.
+    markReviewHelpful: protectedProcedure
+      .input(z.object({ reviewId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await roastersDb.markReviewHelpful(input.reviewId, ctx.user.id);
       }),
   }),
 

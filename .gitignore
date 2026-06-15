@@ -105,3 +105,10 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# BMad tooling (installed per-project, not application source)
+.claude/
+_bmad/
+*.code-workspace
+# BMad implementation artifacts are ephemeral; planning artifacts ARE tracked
+_bmad-output/implementation-artifacts/

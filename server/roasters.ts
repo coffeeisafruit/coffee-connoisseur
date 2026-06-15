@@ -1,5 +1,5 @@
 import { eq, and, like, sql } from "drizzle-orm";
-import { roasters, roasterReviews, InsertRoaster, InsertRoasterReview } from "../drizzle/schema";
+import { roasters, roasterReviews, reviewHelpfulVotes, InsertRoaster, InsertRoasterReview } from "../drizzle/schema";
 import { getDb } from "./db";
 
 /**
@@ -136,6 +136,65 @@ export async function createReview(review: InsertRoasterReview) {
   await updateRoasterRating(review.roasterId);
   
   return result[0].insertId;
+}
+
+/**
+ * Mark a review helpful (Story 3.1 / FR-15).
+ * Idempotent per (review, user): records the vote and increments
+ * `roaster_reviews.helpful_count` only on the user's FIRST vote.
+ * Returns whether the count changed and the resulting count.
+ */
+export async function markReviewHelpful(reviewId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const helpfulCountFor = async (): Promise<number> => {
+    const r = await db
+      .select()
+      .from(roasterReviews)
+      .where(eq(roasterReviews.id, reviewId))
+      .limit(1);
+    return r[0]?.helpfulCount ?? 0;
+  };
+
+  // Validate the review exists (no DB FKs — app-enforced). Prevents orphan votes
+  // and misleading {counted:true} responses for non-existent reviews.
+  const review = await db
+    .select()
+    .from(roasterReviews)
+    .where(eq(roasterReviews.id, reviewId))
+    .limit(1);
+  if (review.length === 0) {
+    throw new Error("Review not found");
+  }
+
+  // Already voted? -> no-op (don't double count).
+  const existing = await db
+    .select()
+    .from(reviewHelpfulVotes)
+    .where(and(eq(reviewHelpfulVotes.reviewId, reviewId), eq(reviewHelpfulVotes.userId, userId)))
+    .limit(1);
+  if (existing.length > 0) {
+    return { counted: false, helpfulCount: review[0].helpfulCount ?? 0 };
+  }
+
+  // Insert the vote. A concurrent first-vote from the same user trips the unique
+  // (reviewId,userId) constraint — catch it and treat as already-voted so the
+  // race resolves idempotently instead of surfacing a 500.
+  try {
+    await db.insert(reviewHelpfulVotes).values({ reviewId, userId });
+  } catch {
+    return { counted: false, helpfulCount: await helpfulCountFor() };
+  }
+
+  await db
+    .update(roasterReviews)
+    .set({ helpfulCount: sql`${roasterReviews.helpfulCount} + 1` })
+    .where(eq(roasterReviews.id, reviewId));
+
+  return { counted: true, helpfulCount: await helpfulCountFor() };
 }
 
 /**

@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import RequireAuth from "./components/RequireAuth";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Quiz from "./pages/Quiz";
@@ -15,9 +16,11 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path="/quiz" component={Quiz} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/journal" component={Journal} />
+      {/* Protected routes (Story 2.1 / FR-14): guarded before data loads */}
+      <Route path="/quiz">{() => <RequireAuth><Quiz /></RequireAuth>}</Route>
+      <Route path="/profile">{() => <RequireAuth><Profile /></RequireAuth>}</Route>
+      <Route path="/journal">{() => <RequireAuth><Journal /></RequireAuth>}</Route>
+      {/* Public: roaster list is public; submitting a review is gated at the action */}
       <Route path="/roasters" component={Roasters} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

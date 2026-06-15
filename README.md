@@ -23,11 +23,17 @@ A full-stack web application for coffee enthusiasts to discover, track, and perf
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (package manager)
 - MySQL database
-- AWS S3 bucket (for image storage)
-- Google Maps API key
+- Manus **Forge proxy** credentials (image storage, Google Maps, and the LLM are
+  reached through the platform proxy — no raw AWS/Maps/OpenAI keys are used by the
+  running app)
+
+> **Note:** Earlier docs referenced raw AWS S3 / Google Maps / OpenAI keys. The
+> live code path uses the Manus Forge proxy via `BUILT_IN_FORGE_API_URL` /
+> `BUILT_IN_FORGE_API_KEY` (see [`docs/integration-architecture.md`](docs/integration-architecture.md)).
+> The unused `@aws-sdk/*` dependencies were removed.
 
 ### Installation
 
@@ -46,13 +52,19 @@ pnpm install
 Create a `.env` file in the root directory with the following variables:
 ```
 DATABASE_URL=your_mysql_connection_string
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_S3_BUCKET_NAME=your_bucket_name
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 JWT_SECRET=your_jwt_secret
-OPENAI_API_KEY=your_openai_api_key
+VITE_APP_ID=your_oauth_app_id
+VITE_OAUTH_PORTAL_URL=your_oauth_portal_url
+OAUTH_SERVER_URL=your_oauth_server_url
+OWNER_OPEN_ID=optional_admin_openid
+# Platform-injected on Manus; required for storage/maps/LLM features:
+BUILT_IN_FORGE_API_URL=your_forge_proxy_url
+BUILT_IN_FORGE_API_KEY=your_forge_proxy_key
 ```
+
+> **Running tests:** the test suite is integration-style and requires a MySQL
+> reachable via `DATABASE_URL` (e.g. `docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=coffee -p 3307:3306 mysql:8`),
+> then `pnpm db:push` before `pnpm test`. Start from a clean database.
 
 4. Run database migrations:
 ```bash
@@ -90,4 +102,5 @@ coffee-connoisseur/
 ## License
 
 MIT
+
 

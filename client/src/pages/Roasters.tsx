@@ -18,9 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { MapView } from "@/components/Map";
 import {
   MapPin,
@@ -31,6 +33,7 @@ import {
   Filter,
   Loader2,
   Clock,
+  ThumbsUp,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -423,19 +426,145 @@ export default function Roasters() {
                   </div>
                 )}
 
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    setLocation(`/roasters/${selectedRoaster.id}`);
-                  }}
-                >
-                  View Full Details & Reviews
-                </Button>
+                {/* Reviews (Story 5.2) + Helpful button (Story 3.2 / FR-15) */}
+                <RoasterReviews roasterId={selectedRoaster.id} />
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** Inline star display (read-only). */
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-4 w-4 ${star <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Roaster reviews: list existing reviews, let signed-in users submit one, and
+ * mark reviews helpful. Submitting/voting while logged out triggers the app's
+ * global unauthorized→login redirect (consistent with the rest of the app).
+ */
+function RoasterReviews({ roasterId }: { roasterId: number }) {
+  const { isAuthenticated } = useAuth();
+  const utils = trpc.useUtils();
+  const { data: reviews = [], isLoading } = trpc.roasters.reviews.useQuery({ roasterId });
+
+  const [rating, setRating] = useState<number>(5);
+  const [title, setTitle] = useState("");
+  const [reviewText, setReviewText] = useState("");
+
+  const addReview = trpc.roasters.addReview.useMutation({
+    onSuccess: () => {
+      utils.roasters.reviews.invalidate({ roasterId });
+      utils.roasters.list.invalidate();
+      toast.success("Review submitted!");
+      setTitle("");
+      setReviewText("");
+      setRating(5);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const markHelpful = trpc.roasters.markReviewHelpful.useMutation({
+    onSuccess: () => utils.roasters.reviews.invalidate({ roasterId }),
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold">Reviews</h3>
+
+      {isLoading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : reviews.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No reviews yet. Be the first!</p>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map((review) => (
+            <Card key={review.id}>
+              <CardContent className="py-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <StarRow rating={review.rating} />
+                  {review.title && <span className="text-sm font-medium">{review.title}</span>}
+                </div>
+                {review.review && <p className="text-sm text-muted-foreground">{review.review}</p>}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Mark review helpful"
+                  disabled={markHelpful.isPending}
+                  onClick={() => markHelpful.mutate({ reviewId: review.id })}
+                >
+                  <ThumbsUp className="h-4 w-4 mr-2" />
+                  Helpful ({review.helpfulCount ?? 0})
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Submit form — authenticated users only */}
+      {isAuthenticated && (
+        <form
+          className="space-y-3 border-t pt-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addReview.mutate({
+              roasterId,
+              rating,
+              title: title || undefined,
+              review: reviewText || undefined,
+            });
+          }}
+        >
+          <h4 className="font-medium text-sm">Write a review</h4>
+          <div className="space-y-2">
+            <Label>Rating</Label>
+            <Select value={rating.toString()} onValueChange={(v) => setRating(parseInt(v))}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[5, 4, 3, 2, 1].map((n) => (
+                  <SelectItem key={n} value={n.toString()}>
+                    {n} Star{n > 1 ? "s" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            placeholder="Title (optional)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <Textarea
+            placeholder="Share your experience..."
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+            rows={3}
+          />
+          <Button type="submit" disabled={addReview.isPending}>
+            {addReview.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Submit Review
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
