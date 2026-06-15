@@ -15,6 +15,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    // Per-test DB isolation: truncate all tables before each test so the suite
+    // is re-runnable without a manual DB reset.
+    setupFiles: ["./vitest.setup.ts"],
     // These are integration tests sharing one MySQL (DATABASE_URL). Running test
     // files in parallel causes cross-file data races (e.g. one file reviews
     // allRoasters[0] while another seeds roasters). Run serially for determinism.

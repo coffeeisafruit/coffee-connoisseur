@@ -6,7 +6,7 @@ import { z } from "zod";
 import * as brewJournalDb from "./brewJournal";
 import * as userProfileDb from "./userProfile";
 import * as roastersDb from "./roasters";
-import { storagePut } from "./storage";
+import { storagePut, storageDelete } from "./storage";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -104,6 +104,13 @@ export const appRouter = router({
         const { id, photoData, removePhoto, ...rest } = input;
         const updates: Record<string, unknown> = { ...rest };
 
+        // Capture the prior photo key so we can reclaim it if it changes.
+        let oldPhotoKey: string | null | undefined;
+        if (photoData || removePhoto) {
+          const existing = await brewJournalDb.getBrewEntryById(id, ctx.user.id);
+          oldPhotoKey = existing?.photoKey;
+        }
+
         // Story 1.1 / FR-13: photo edit on update.
         if (photoData) {
           const base64Data = photoData.split(",")[1] || photoData;
@@ -120,13 +127,21 @@ export const appRouter = router({
         }
 
         await brewJournalDb.updateBrewEntry(id, ctx.user.id, updates as any);
+
+        // Reclaim the replaced/removed photo (best-effort).
+        if ((photoData || removePhoto) && oldPhotoKey && oldPhotoKey !== updates.photoKey) {
+          await storageDelete(oldPhotoKey);
+        }
         return { success: true };
       }),
 
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
+        // Reclaim the entry's photo (best-effort) before deleting the row.
+        const existing = await brewJournalDb.getBrewEntryById(input.id, ctx.user.id);
         await brewJournalDb.deleteBrewEntry(input.id, ctx.user.id);
+        await storageDelete(existing?.photoKey);
         return { success: true };
       }),
   }),

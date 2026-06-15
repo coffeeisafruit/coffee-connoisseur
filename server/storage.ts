@@ -100,3 +100,20 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
     url: await buildDownloadUrl(baseUrl, key, apiKey),
   };
 }
+
+/**
+ * Best-effort delete of a stored object (retro follow-up: reclaim photos that
+ * were replaced or removed). Never throws — orphan cleanup must not fail the
+ * user's action. Safe to call with an empty/missing key (no-op).
+ */
+export async function storageDelete(relKey: string | null | undefined): Promise<void> {
+  if (!relKey) return;
+  try {
+    const { baseUrl, apiKey } = getStorageConfig();
+    const url = new URL("v1/storage/delete", ensureTrailingSlash(baseUrl));
+    url.searchParams.set("path", normalizeKey(relKey));
+    await fetch(url, { method: "DELETE", headers: buildAuthHeaders(apiKey) });
+  } catch (error) {
+    console.warn("[Storage] best-effort delete failed:", error);
+  }
+}
