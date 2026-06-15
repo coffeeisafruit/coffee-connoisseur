@@ -1,70 +1,52 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
+// Object storage on DO Spaces (migration M3.1) — S3-compatible.
+// Public interface (storagePut / storageGet / storageDelete) is unchanged from
+// the previous Forge implementation, so callers in routers.ts are untouched.
 
-import { ENV } from './_core/env';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { ENV } from "./_core/env";
 
-type StorageConfig = { baseUrl: string; apiKey: string };
+type SpacesConfig = {
+  client: S3Client;
+  bucket: string;
+  publicBaseUrl: string;
+};
 
-function getStorageConfig(): StorageConfig {
-  const baseUrl = ENV.forgeApiUrl;
-  const apiKey = ENV.forgeApiKey;
+let _config: SpacesConfig | null = null;
 
-  if (!baseUrl || !apiKey) {
+function getSpacesConfig(): SpacesConfig {
+  if (_config) return _config;
+  const { spacesEndpoint, spacesRegion, spacesBucket, spacesKey, spacesSecret } = ENV;
+  if (!spacesEndpoint || !spacesBucket || !spacesKey || !spacesSecret) {
     throw new Error(
-      "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
+      "DO Spaces not configured: set SPACES_ENDPOINT, SPACES_BUCKET, SPACES_KEY, SPACES_SECRET"
     );
   }
-
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };
-}
-
-function buildUploadUrl(baseUrl: string, relKey: string): URL {
-  const url = new URL("v1/storage/upload", ensureTrailingSlash(baseUrl));
-  url.searchParams.set("path", normalizeKey(relKey));
-  return url;
-}
-
-async function buildDownloadUrl(
-  baseUrl: string,
-  relKey: string,
-  apiKey: string
-): Promise<string> {
-  const downloadApiUrl = new URL(
-    "v1/storage/downloadUrl",
-    ensureTrailingSlash(baseUrl)
-  );
-  downloadApiUrl.searchParams.set("path", normalizeKey(relKey));
-  const response = await fetch(downloadApiUrl, {
-    method: "GET",
-    headers: buildAuthHeaders(apiKey),
+  const client = new S3Client({
+    endpoint: spacesEndpoint,
+    region: spacesRegion,
+    credentials: { accessKeyId: spacesKey, secretAccessKey: spacesSecret },
+    forcePathStyle: false,
   });
-  return (await response.json()).url;
-}
-
-function ensureTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value : `${value}/`;
+  // Public URL base: explicit CDN/base if given, else virtual-hosted Spaces URL.
+  const publicBaseUrl =
+    ENV.spacesPublicBaseUrl.replace(/\/+$/, "") ||
+    `${spacesEndpoint.replace(/^https?:\/\//, `https://${spacesBucket}.`).replace(/\/+$/, "")}`;
+  _config = { client, bucket: spacesBucket, publicBaseUrl };
+  return _config;
 }
 
 function normalizeKey(relKey: string): string {
   return relKey.replace(/^\/+/, "");
 }
 
-function toFormData(
-  data: Buffer | Uint8Array | string,
-  contentType: string,
-  fileName: string
-): FormData {
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
-  const form = new FormData();
-  form.append("file", blob, fileName || "file");
-  return form;
-}
-
-function buildAuthHeaders(apiKey: string): HeadersInit {
-  return { Authorization: `Bearer ${apiKey}` };
+function toBody(data: Buffer | Uint8Array | string): Buffer | Uint8Array | string {
+  return data;
 }
 
 export async function storagePut(
@@ -72,47 +54,45 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
-  const { baseUrl, apiKey } = getStorageConfig();
+  const { client, bucket, publicBaseUrl } = getSpacesConfig();
   const key = normalizeKey(relKey);
-  const uploadUrl = buildUploadUrl(baseUrl, key);
-  const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: buildAuthHeaders(apiKey),
-    body: formData,
-  });
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: toBody(data),
+      ContentType: contentType,
+      ACL: "public-read",
+    })
+  );
+  return { key, url: `${publicBaseUrl}/${key}` };
+}
 
-  if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText);
-    throw new Error(
-      `Storage upload failed (${response.status} ${response.statusText}): ${message}`
-    );
-  }
-  const url = (await response.json()).url;
+export async function storageGet(
+  relKey: string
+): Promise<{ key: string; url: string }> {
+  const { client, bucket } = getSpacesConfig();
+  const key = normalizeKey(relKey);
+  // Presigned GET (works for private objects too); valid 1h.
+  const url = await getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
+    { expiresIn: 3600 }
+  );
   return { key, url };
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
-  const { baseUrl, apiKey } = getStorageConfig();
-  const key = normalizeKey(relKey);
-  return {
-    key,
-    url: await buildDownloadUrl(baseUrl, key, apiKey),
-  };
-}
-
 /**
- * Best-effort delete of a stored object (retro follow-up: reclaim photos that
- * were replaced or removed). Never throws — orphan cleanup must not fail the
- * user's action. Safe to call with an empty/missing key (no-op).
+ * Best-effort delete (retro/migration): never throws — orphan cleanup must not
+ * fail the user's action. No-op on empty key.
  */
 export async function storageDelete(relKey: string | null | undefined): Promise<void> {
   if (!relKey) return;
   try {
-    const { baseUrl, apiKey } = getStorageConfig();
-    const url = new URL("v1/storage/delete", ensureTrailingSlash(baseUrl));
-    url.searchParams.set("path", normalizeKey(relKey));
-    await fetch(url, { method: "DELETE", headers: buildAuthHeaders(apiKey) });
+    const { client, bucket } = getSpacesConfig();
+    await client.send(
+      new DeleteObjectCommand({ Bucket: bucket, Key: normalizeKey(relKey) })
+    );
   } catch (error) {
     console.warn("[Storage] best-effort delete failed:", error);
   }
