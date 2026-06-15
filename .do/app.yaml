@@ -1,0 +1,78 @@
+# DigitalOcean App Platform spec (migration M6.1).
+# Deploy with: doctl apps create --spec .do/app.yaml   (or update an existing app)
+# Secrets (type: SECRET) are set in the App Platform dashboard / doctl, never committed.
+name: coffee-connoisseur
+region: nyc
+
+services:
+  - name: web
+    github:
+      repo: coffeeisafruit/coffee-connoisseur
+      branch: main
+      deploy_on_push: true
+    # pnpm is resolved from package.json "packageManager"
+    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    run_command: pnpm start
+    environment_slug: node-js
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      http_path: /
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      # --- secrets (set in dashboard / doctl) ---
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: BETTER_AUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: BETTER_AUTH_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+      - key: OPENROUTER_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_ENDPOINT
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_REGION
+        scope: RUN_TIME
+        value: nyc3
+      - key: SPACES_BUCKET
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+
+# Runs database migrations before each deploy.
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: coffeeisafruit/coffee-connoisseur
+      branch: main
+    build_command: corepack enable && pnpm install --frozen-lockfile
+    run_command: pnpm db:push
+    environment_slug: node-js
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+# Attach a DO Managed MySQL. For production, point this at a managed cluster;
+# the dev engine here is a convenience for first deploy.
+databases:
+  - name: coffee-db
+    engine: MYSQL
+    version: "8"
+    production: false
