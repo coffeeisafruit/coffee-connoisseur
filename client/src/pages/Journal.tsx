@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
@@ -32,6 +31,8 @@ import {
   MapPin,
   Filter,
   Loader2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,6 +44,10 @@ export default function Journal() {
   const [sortBy, setSortBy] = useState<string>("date");
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  // Story 5.1 / FR-13: edit + delete + photo replace/remove.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string>("");
+  const [removePhoto, setRemovePhoto] = useState<boolean>(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -78,6 +83,28 @@ export default function Journal() {
     },
   });
 
+  const updateMutation = trpc.brewJournal.update.useMutation({
+    onSuccess: () => {
+      refetch();
+      toast.success("Brew entry updated!");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update entry: ${error.message}`);
+    },
+  });
+
+  const deleteMutation = trpc.brewJournal.delete.useMutation({
+    onSuccess: () => {
+      refetch();
+      toast.success("Brew entry deleted");
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete entry: ${error.message}`);
+    },
+  });
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -107,6 +134,43 @@ export default function Journal() {
     });
     setPhotoPreview("");
     setPhotoFile(null);
+    setEditingId(null);
+    setExistingPhotoUrl("");
+    setRemovePhoto(false);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openEdit = (entry: (typeof entries)[number]) => {
+    setFormData({
+      beanName: entry.beanName,
+      origin: entry.origin,
+      roastLevel: entry.roastLevel as any,
+      grindSize: entry.grindSize as any,
+      brewMethod: entry.brewMethod as any,
+      waterTemp: entry.waterTemp ?? "",
+      brewTime: entry.brewTime ?? "",
+      coffeeAmount: entry.coffeeAmount ?? "",
+      waterAmount: entry.waterAmount ?? "",
+      rating: entry.rating,
+      tastingNotes: entry.tastingNotes ?? "",
+      observations: entry.observations ?? "",
+    });
+    setEditingId(entry.id);
+    setExistingPhotoUrl(entry.photoUrl ?? "");
+    setPhotoPreview("");
+    setPhotoFile(null);
+    setRemovePhoto(false);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (entry: (typeof entries)[number]) => {
+    if (window.confirm(`Delete the entry for "${entry.beanName}"? This cannot be undone.`)) {
+      deleteMutation.mutate({ id: entry.id });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,18 +181,24 @@ export default function Journal() {
       return;
     }
 
-    createMutation.mutate({
-      ...formData,
-      photoData: photoPreview || undefined,
-    });
+    if (editingId !== null) {
+      updateMutation.mutate({
+        id: editingId,
+        ...formData,
+        // Only send a new photo if one was picked; otherwise honor removal.
+        photoData: photoPreview || undefined,
+        removePhoto: !photoPreview && removePhoto ? true : undefined,
+      });
+    } else {
+      createMutation.mutate({
+        ...formData,
+        photoData: photoPreview || undefined,
+      });
+    }
   };
 
   const handleGoHome = () => {
     setLocation("/");
-  };
-
-  const handleViewEntry = (id: number) => {
-    setLocation(`/journal/${id}`);
   };
 
   const renderStars = (rating: number, interactive: boolean = false) => {
@@ -199,22 +269,20 @@ export default function Journal() {
             <img src={APP_LOGO} alt="Coffee Connoisseur" className="h-8 w-8" />
             <span className="text-xl font-semibold">{APP_TITLE}</span>
           </button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Entry
-              </Button>
-            </DialogTrigger>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Entry
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add Brew Entry</DialogTitle>
+                <DialogTitle>{editingId !== null ? "Edit Brew Entry" : "Add Brew Entry"}</DialogTitle>
                 <DialogDescription>
                   Record your brewing experiment with all the details
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Photo Upload */}
+                {/* Photo Upload (Story 5.1 / FR-13: replace or remove when editing) */}
                 <div className="space-y-2">
                   <Label>Photo (Optional)</Label>
                   <div className="flex items-center gap-4">
@@ -224,10 +292,31 @@ export default function Journal() {
                       onChange={handlePhotoUpload}
                       className="flex-1"
                     />
-                    {photoPreview && (
+                    {photoPreview ? (
                       <img src={photoPreview} alt="Preview" className="h-20 w-20 object-cover rounded-lg" />
-                    )}
+                    ) : existingPhotoUrl && !removePhoto ? (
+                      <div className="flex items-center gap-2">
+                        <img src={existingPhotoUrl} alt="Current" className="h-20 w-20 object-cover rounded-lg" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-label="Remove photo"
+                          onClick={() => setRemovePhoto(true)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
+                  {existingPhotoUrl && removePhoto && !photoPreview && (
+                    <p className="text-xs text-muted-foreground">
+                      Photo will be removed when you save.{" "}
+                      <button type="button" className="underline" onClick={() => setRemovePhoto(false)}>
+                        Undo
+                      </button>
+                    </p>
+                  )}
                 </div>
 
                 {/* Bean Information */}
@@ -373,11 +462,11 @@ export default function Journal() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
-                    {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Save Entry
+                  <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
+                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingId !== null ? "Save Changes" : "Save Entry"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>
                     Cancel
                   </Button>
                 </div>
@@ -438,7 +527,7 @@ export default function Journal() {
               <Coffee className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No entries yet</h3>
               <p className="text-muted-foreground mb-6">Start recording your brewing experiments</p>
-              <Button onClick={() => setIsDialogOpen(true)}>
+              <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Entry
               </Button>
@@ -449,8 +538,7 @@ export default function Journal() {
             {filteredEntries.map((entry) => (
               <Card
                 key={entry.id}
-                className="hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => handleViewEntry(entry.id)}
+                className="hover:border-primary/50 transition-colors"
               >
                 {entry.photoUrl && (
                   <div className="aspect-video overflow-hidden rounded-t-lg">
@@ -487,6 +575,22 @@ export default function Journal() {
                       {entry.tastingNotes}
                     </p>
                   )}
+                  {/* Story 5.1: edit & delete actions */}
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(entry)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Delete entry ${entry.beanName}`}
+                      onClick={() => handleDelete(entry)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

@@ -1,0 +1,50 @@
+{
+  "repository_type": "multi-part",
+  "project_name": "Coffee Connoisseur",
+  "package_manager": "pnpm",
+  "platform_origin": "Manus WebDev",
+  "parts": [
+    {
+      "part_id": "client",
+      "display_name": "Web Frontend",
+      "project_type_id": "web",
+      "root_path": "client/",
+      "entry_point": "client/src/main.tsx",
+      "primary_tech": ["React 19", "Vite 7", "TypeScript", "Tailwind 4", "tRPC react-query", "TanStack Query", "wouter", "Radix/shadcn"]
+    },
+    {
+      "part_id": "server",
+      "display_name": "Backend API",
+      "project_type_id": "backend",
+      "root_path": "server/",
+      "entry_point": "server/_core/index.ts",
+      "primary_tech": ["Express 4", "tRPC 11", "Drizzle ORM", "mysql2", "zod", "jose", "openai"]
+    }
+  ],
+  "shared_modules": ["shared/", "drizzle/"],
+  "integration_points": [
+    {
+      "from": "client",
+      "to": "server",
+      "type": "tRPC over HTTP",
+      "details": "httpBatchLink → POST /api/trpc/*, superjson, credentials: include; AppRouter imported as type for end-to-end type safety"
+    },
+    {
+      "from": "browser",
+      "to": "server",
+      "type": "OAuth redirect",
+      "details": "GET /api/oauth/callback sets app_session_id cookie"
+    },
+    {
+      "from": "server",
+      "to": "external",
+      "type": "Forge proxy (bearer key)",
+      "details": "object storage, Google Maps, OpenAI-compatible LLM, voice transcription, image generation"
+    }
+  ],
+  "database": {
+    "dialect": "mysql",
+    "orm": "drizzle",
+    "tables": ["users", "brew_entries", "user_profiles", "roasters", "roaster_reviews"]
+  }
+}

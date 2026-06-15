@@ -1,0 +1,63 @@
+# CI quality gate (Story 4.3 / FR-18).
+# Runs typecheck and the integration test suite on every PR to main.
+# The tests are integration-style and require a real MySQL, so we provision one
+# as a service container (mocking would gut the tests' integration value).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: coffee
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/coffee
+      JWT_SECRET: ci-test-secret
+      NODE_ENV: development
+      # Declared explicitly (empty) so the env contract is visible; the test
+      # suite builds TrpcContext directly and does not hit these services.
+      OAUTH_SERVER_URL: ""
+      BUILT_IN_FORGE_API_URL: ""
+      BUILT_IN_FORGE_API_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version is read from package.json "packageManager" — do not also pin here
+      # (specifying both triggers ERR_PNPM_BAD_PM_VERSION).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Apply database schema
+        run: pnpm db:push
+
+      - name: Run tests
+        run: pnpm test

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -164,3 +164,26 @@ export const roasterReviews = mysqlTable("roaster_reviews", {
 
 export type RoasterReview = typeof roasterReviews.$inferSelect;
 export type InsertRoasterReview = typeof roasterReviews.$inferInsert;
+
+/**
+ * Roaster review "helpful" votes (Story 3.1 / FR-15).
+ * One vote per (review, user) — enforced by the unique constraint — so
+ * `roaster_reviews.helpful_count` can be trusted (no double-counting).
+ */
+export const reviewHelpfulVotes = mysqlTable(
+  "review_helpful_votes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    reviewId: int("review_id").notNull(),
+    userId: int("user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  table => ({
+    // App-enforced FK convention (consistent with existing tables); the unique
+    // pair is the integrity guarantee FR-15 depends on.
+    uniqueVote: unique("uniq_review_user").on(table.reviewId, table.userId),
+  })
+);
+
+export type ReviewHelpfulVote = typeof reviewHelpfulVotes.$inferSelect;
+export type InsertReviewHelpfulVote = typeof reviewHelpfulVotes.$inferInsert;
