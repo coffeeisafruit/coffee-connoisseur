@@ -11,11 +11,15 @@ function needsSsl(url: string): boolean {
 
 function sslOptions(url: string) {
   if (!needsSsl(url)) return undefined;
-  // Prefer verifying against the cluster CA (App Platform injects it as
-  // ${db.CA_CERT} → DB_CA_CERT). Only fall back to unverified TLS if no CA is
-  // available, so transit is still encrypted.
+  // Verify against the cluster CA (App Platform injects it as ${db.CA_CERT} →
+  // DB_CA_CERT). Production REQUIRES it — never silently downgrade verification.
   const ca = process.env.DB_CA_CERT;
-  return ca ? { ca } : { rejectUnauthorized: false };
+  if (ca) return { ca, rejectUnauthorized: true };
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DB_CA_CERT is required for TLS to the managed database in production");
+  }
+  // Non-prod ad-hoc remote testing only: encrypted but unverified.
+  return { rejectUnauthorized: false };
 }
 
 export function createDrizzle(url: string) {
