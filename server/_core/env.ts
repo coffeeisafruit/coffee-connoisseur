@@ -7,4 +7,8 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  // OpenRouter (migration M1.1): OpenAI-compatible LLM gateway replacing Forge.
+  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
+  openRouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+  llmModel: process.env.LLM_MODEL ?? "meta-llama/llama-3.3-70b-instruct:free",
 };
