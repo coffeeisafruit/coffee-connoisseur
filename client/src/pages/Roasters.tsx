@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ import { APP_LOGO, APP_TITLE } from "@/const";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { MapView } from "@/components/Map";
+import { MapView, type RoasterMarker } from "@/components/Map";
 import {
   MapPin,
   Star,
@@ -66,9 +66,6 @@ export default function Roasters() {
   const [selectedRoaster, setSelectedRoaster] = useState<RoasterWithParsed | null>(null);
   const [originFilter, setOriginFilter] = useState<string>("all");
   const [ratingFilter, setRatingFilter] = useState<number>(0);
-  const [mapReady, setMapReady] = useState(false);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
 
   // Fetch roasters with filters
   const { data: rawRoasters = [], isLoading } = trpc.roasters.list.useQuery({
@@ -91,61 +88,14 @@ export default function Roasters() {
     setLocation("/");
   };
 
-  const handleMapReady = useCallback((map: google.maps.Map) => {
-    setMapInstance(map);
-    setMapReady(true);
-  }, []);
-
-  // Create markers when map is ready and roasters are loaded
-  useMemo(() => {
-    if (!mapReady || !mapInstance || roasters.length === 0) return;
-
-    // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
-
-    // Create new markers
-    const newMarkers: google.maps.Marker[] = [];
-    const bounds = new google.maps.LatLngBounds();
-
-    roasters.forEach((roaster) => {
-      const lat = parseFloat(roaster.latitude);
-      const lng = parseFloat(roaster.longitude);
-      
-      if (isNaN(lat) || isNaN(lng)) return;
-
-      const position = { lat, lng };
-      const marker = new google.maps.Marker({
-        position,
-        map: mapInstance,
-        title: roaster.name,
-        icon: {
-          url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-            <svg width="32" height="42" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 26 16 26s16-14 16-26c0-8.837-7.163-16-16-16z" fill="#8B4513"/>
-              <circle cx="16" cy="16" r="8" fill="white"/>
-              <path d="M16 10c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2s2-.9 2-2v-2c0-1.1-.9-2-2-2z" fill="#8B4513"/>
-            </svg>
-          `),
-          scaledSize: new google.maps.Size(32, 42),
-          anchor: new google.maps.Point(16, 42),
-        },
-      });
-
-      marker.addListener("click", () => {
-        setSelectedRoaster(roaster);
-      });
-
-      newMarkers.push(marker);
-      bounds.extend(position);
-    });
-
-    setMarkers(newMarkers);
-
-    // Fit map to show all markers
-    if (newMarkers.length > 0) {
-      mapInstance.fitBounds(bounds);
-    }
-  }, [mapReady, mapInstance, roasters]);
+  // Markers for the Leaflet/OSM map — valid coordinates only (migration M2.1).
+  const markerPoints: RoasterMarker[] = useMemo(
+    () =>
+      roasters
+        .map(r => ({ id: r.id, name: r.name, lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) }))
+        .filter(m => !Number.isNaN(m.lat) && !Number.isNaN(m.lng)),
+    [roasters]
+  );
 
   const renderStars = (rating: number) => {
     return (
@@ -312,7 +262,11 @@ export default function Roasters() {
         {/* Map */}
         <div className="flex-1 relative">
           <MapView
-            onMapReady={handleMapReady}
+            markers={markerPoints}
+            onMarkerClick={(id) => {
+              const r = roasters.find(x => x.id === id);
+              if (r) setSelectedRoaster(r);
+            }}
             initialCenter={{ lat: 37.7749, lng: -122.4194 }} // San Francisco
             initialZoom={12}
             className="w-full h-full min-h-[400px] lg:min-h-0"
