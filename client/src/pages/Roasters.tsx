@@ -478,8 +478,23 @@ function RoasterReviews({ roasterId }: { roasterId: number }) {
   });
 
   const markHelpful = trpc.roasters.markReviewHelpful.useMutation({
-    onSuccess: () => utils.roasters.reviews.invalidate({ roasterId }),
-    onError: (e) => toast.error(e.message),
+    // Optimistic update (EXPERIENCE.md KF-3): bump the count immediately, roll
+    // back on error, and reconcile with the server count on settle.
+    onMutate: async ({ reviewId }) => {
+      await utils.roasters.reviews.cancel({ roasterId });
+      const prev = utils.roasters.reviews.getData({ roasterId });
+      utils.roasters.reviews.setData({ roasterId }, (old) =>
+        old?.map((r) =>
+          r.id === reviewId ? { ...r, helpfulCount: (r.helpfulCount ?? 0) + 1 } : r
+        )
+      );
+      return { prev };
+    },
+    onError: (e, _vars, ctx) => {
+      if (ctx?.prev) utils.roasters.reviews.setData({ roasterId }, ctx.prev);
+      toast.error(e.message);
+    },
+    onSettled: () => utils.roasters.reviews.invalidate({ roasterId }),
   });
 
   return (
