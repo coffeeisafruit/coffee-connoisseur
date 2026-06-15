@@ -1,4 +1,54 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+import { boolean, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+
+/* ───────────────────────── Better Auth tables (migration M5) ─────────────────────────
+ * Owned by Better Auth (drizzle adapter). Identity system of record: `user.id` is a
+ * string (UUID). Feature tables migrate their userId columns to varchar(36) in M5.2.
+ */
+export const user = mysqlTable("user", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export const session = mysqlTable("session", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+});
+
+export const account = mysqlTable("account", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export const verification = mysqlTable("verification", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  identifier: varchar("identifier", { length: 255 }).notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
 
 /**
  * Core user table backing auth flow.

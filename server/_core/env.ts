@@ -18,4 +18,7 @@ export const ENV = {
   spacesKey: process.env.SPACES_KEY ?? "",
   spacesSecret: process.env.SPACES_SECRET ?? "",
   spacesPublicBaseUrl: process.env.SPACES_PUBLIC_BASE_URL ?? "", // optional CDN/base; falls back to endpoint/bucket
+  // Better Auth (migration M5): self-hosted email/password auth.
+  betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "",
+  betterAuthUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
 };
