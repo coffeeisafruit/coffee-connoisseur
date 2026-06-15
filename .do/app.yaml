@@ -1,6 +1,5 @@
 # DigitalOcean App Platform spec (migration M6.1).
-# Deploy with: doctl apps create --spec .do/app.yaml   (or update an existing app)
-# Secrets (type: SECRET) are set in the App Platform dashboard / doctl, never committed.
+# Deploy: doctl apps create --spec .do/app.yaml   (secrets set at create / in dashboard).
 name: coffee-connoisseur
 region: nyc
 
@@ -10,7 +9,6 @@ services:
       repo: coffeeisafruit/coffee-connoisseur
       branch: main
       deploy_on_push: true
-    # pnpm is resolved from package.json "packageManager"
     build_command: corepack enable && pnpm install --frozen-lockfile && pnpm build
     run_command: pnpm start
     environment_slug: node-js
@@ -24,10 +22,13 @@ services:
         value: production
       - key: PORT
         value: "8080"
-      # --- secrets (set in dashboard / doctl) ---
+      # Managed MySQL connection + CA injected from the attached cluster.
       - key: DATABASE_URL
         scope: RUN_AND_BUILD_TIME
-        type: SECRET
+        value: ${coffee-connoisseur-db.DATABASE_URL}
+      - key: DB_CA_CERT
+        scope: RUN_AND_BUILD_TIME
+        value: ${coffee-connoisseur-db.CA_CERT}
       - key: BETTER_AUTH_SECRET
         scope: RUN_AND_BUILD_TIME
         type: SECRET
@@ -37,23 +38,10 @@ services:
       - key: OPENROUTER_API_KEY
         scope: RUN_TIME
         type: SECRET
-      - key: SPACES_ENDPOINT
-        scope: RUN_TIME
-        type: SECRET
-      - key: SPACES_REGION
-        scope: RUN_TIME
-        value: nyc3
-      - key: SPACES_BUCKET
-        scope: RUN_TIME
-        type: SECRET
-      - key: SPACES_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: SPACES_SECRET
-        scope: RUN_TIME
-        type: SECRET
+      # Maps use Leaflet/OSM (no key). DO Spaces intentionally omitted this round
+      # (brew-photo upload degrades gracefully until SPACES_* are added).
 
-# Runs database migrations before each deploy.
+# Run DB migrations before each deploy (the authorized migration path).
 jobs:
   - name: migrate
     kind: PRE_DEPLOY
@@ -65,14 +53,18 @@ jobs:
     environment_slug: node-js
     instance_size_slug: basic-xxs
     envs:
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
         scope: RUN_TIME
-        type: SECRET
+        value: ${coffee-connoisseur-db.DATABASE_URL}
+      - key: DB_CA_CERT
+        scope: RUN_TIME
+        value: ${coffee-connoisseur-db.CA_CERT}
 
-# Attach a DO Managed MySQL. For production, point this at a managed cluster;
-# the dev engine here is a convenience for first deploy.
+# Attach the existing managed MySQL cluster (provisioned via doctl).
 databases:
-  - name: coffee-db
+  - name: coffee-connoisseur-db
     engine: MYSQL
-    version: "8"
-    production: false
+    production: true
+    cluster_name: coffee-connoisseur-db

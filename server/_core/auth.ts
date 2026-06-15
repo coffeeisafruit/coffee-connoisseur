@@ -1,13 +1,13 @@
 // Better Auth (migration M5) — self-hosted email/password auth, Drizzle adapter.
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { drizzle } from "drizzle-orm/mysql2";
 import { account, session, user, verification } from "../../drizzle/schema";
+import { createDrizzle } from "../db";
 import { ENV } from "./env";
 
-// Dedicated drizzle instance for Better Auth. mysql2 pools are lazy, so this is
-// safe to construct at import even when DATABASE_URL is absent (e.g. tooling).
-const authDb = drizzle(ENV.databaseUrl || "mysql://invalid:invalid@127.0.0.1:3306/none");
+// Dedicated drizzle instance for Better Auth (SSL-aware via createDrizzle).
+// mysql2 pools are lazy, so this is safe at import even without DATABASE_URL.
+const authDb = createDrizzle(ENV.databaseUrl || "mysql://invalid:invalid@127.0.0.1:3306/none");
 
 export const auth = betterAuth({
   database: drizzleAdapter(authDb, {
