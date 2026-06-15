@@ -18,6 +18,12 @@ export const auth = betterAuth({
     enabled: true,
     // Email verification stubbed for this cycle (see PRD §4.1 Out of Scope).
   },
+  user: {
+    additionalFields: {
+      // Authorization tier (preserves the admin procedure). Not user-settable.
+      role: { type: "string", required: false, defaultValue: "user", input: false },
+    },
+  },
   secret: ENV.betterAuthSecret,
   baseURL: ENV.betterAuthUrl,
 });

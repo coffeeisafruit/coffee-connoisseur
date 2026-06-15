@@ -5,7 +5,7 @@ import { getDb } from "./db";
 /**
  * Get user profile by user ID
  */
-export async function getUserProfile(userId: number) {
+export async function getUserProfile(userId: string) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");

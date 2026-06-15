@@ -19,7 +19,11 @@ const TABLES = [
   "roasters",
   "user_profiles",
   "brew_entries",
-  "users",
+  // Better Auth identity tables (migration M5.2)
+  "session",
+  "account",
+  "verification",
+  "user",
 ];
 
 beforeEach(async () => {

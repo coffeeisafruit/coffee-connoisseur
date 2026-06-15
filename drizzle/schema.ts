@@ -10,9 +10,13 @@ export const user = mysqlTable("user", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  // Authorization role (Better Auth additionalField) — preserves admin tier.
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
+
+export type AuthUser = typeof user.$inferSelect;
 
 export const session = mysqlTable("session", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -50,30 +54,9 @@ export const verification = mysqlTable("verification", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
-export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
-  id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
+// (Migration M5.2) The Manus `users` table was removed — Better Auth's `user`
+// table (above) is now the identity system of record. Feature tables key
+// `userId` as varchar(36) referencing `user.id`.
 
 /**
  * Brew journal entries table
@@ -81,7 +64,7 @@ export type InsertUser = typeof users.$inferInsert;
  */
 export const brewEntries = mysqlTable("brew_entries", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
   date: timestamp("date").defaultNow().notNull(),
   
   // Bean information
@@ -119,7 +102,7 @@ export type InsertBrewEntry = typeof brewEntries.$inferInsert;
  */
 export const userProfiles = mysqlTable("user_profiles", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull().unique(),
+  userId: varchar("user_id", { length: 36 }).notNull().unique(),
   
   // Quiz answers
   flavorPreference: varchar("flavor_preference", { length: 100 }),
@@ -195,7 +178,7 @@ export type InsertRoaster = typeof roasters.$inferInsert;
 export const roasterReviews = mysqlTable("roaster_reviews", {
   id: int("id").autoincrement().primaryKey(),
   roasterId: int("roaster_id").notNull(),
-  userId: int("user_id").notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
   
   rating: int("rating").notNull(), // 1-5 stars
   title: varchar("title", { length: 255 }),
@@ -225,7 +208,7 @@ export const reviewHelpfulVotes = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     reviewId: int("review_id").notNull(),
-    userId: int("user_id").notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   table => ({
