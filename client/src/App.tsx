@@ -11,6 +11,8 @@ import Quiz from "./pages/Quiz";
 import Profile from "./pages/Profile";
 import Journal from "./pages/Journal";
 import Roasters from "./pages/Roasters";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -24,6 +26,9 @@ function Router() {
       <Route path="/journal">{() => <RequireAuth><Journal /></RequireAuth>}</Route>
       {/* Public: roaster list is public; submitting a review is gated at the action */}
       <Route path="/roasters" component={Roasters} />
+      {/* Legal pages */}
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
