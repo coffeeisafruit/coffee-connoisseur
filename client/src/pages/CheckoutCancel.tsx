@@ -42,7 +42,7 @@ export default function CheckoutCancel() {
                 <div className="bg-muted/50 rounded-lg p-6 space-y-3">
                   <h3 className="font-semibold text-lg">Still interested?</h3>
                   <p className="text-muted-foreground">
-                    Join thousands of coffee enthusiasts who are perfecting their brew with personalized recommendations, expert recipes, and community insights.
+                    Perfect your brew with personalized recommendations, expert recipes, and community insights.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">

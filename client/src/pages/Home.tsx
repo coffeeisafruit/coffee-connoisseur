@@ -337,6 +337,10 @@ export default function Home() {
             <p className="text-xl text-muted-foreground">
               Start your journey today and discover the perfect cup of coffee tailored to your unique palate.
             </p>
+            <div className="flex items-baseline justify-center gap-2 pt-4">
+              <span className="text-4xl md:text-5xl font-bold">$9.99</span>
+              <span className="text-xl text-muted-foreground">/month</span>
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="text-lg" onClick={startQuiz}>
                 Take the Quiz
