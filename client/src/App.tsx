@@ -25,8 +25,9 @@ function Router() {
       <Route path="/login" component={Login} />
       {/* Quiz is public: Quiz.tsx handles logged-out users via URL params */}
       <Route path="/quiz" component={Quiz} />
+      {/* Profile is public: Profile.tsx reads query params for logged-out quiz results */}
+      <Route path="/profile" component={Profile} />
       {/* Protected routes (Story 2.1 / FR-14): guarded before data loads */}
-      <Route path="/profile">{() => <RequireAuth><Profile /></RequireAuth>}</Route>
       <Route path="/journal">{() => <RequireAuth><Journal /></RequireAuth>}</Route>
       {/* Public: roaster list is public; submitting a review is gated at the action */}
       <Route path="/roasters" component={Roasters} />

@@ -3,20 +3,17 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 /**
- * Route access test: verify /quiz is public (not wrapped in RequireAuth).
+ * Route access test: verify /quiz and /profile are public (not wrapped in RequireAuth).
  * 
- * Context: The /quiz route was causing friction for logged-out visitors.
- * Home CTAs ("Get Started", "Start Your Journey", "Take the Quiz") all
- * lead to /quiz, which was previously wrapped in RequireAuth, immediately
- * showing login and creating a dead-end experience.
- * 
- * Quiz.tsx already handles logged-out users by passing quiz answers to
- * /profile via URL params, where Profile.tsx can display results even
- * for non-authenticated users.
+ * Context: The /quiz and /profile routes were causing friction for logged-out visitors.
+ * Home CTAs ("Get Started", "Start Your Journey", "Take the Quiz") all lead to /quiz.
+ * Quiz.tsx passes quiz answers to /profile via URL params, where Profile.tsx displays
+ * results for non-authenticated users.
  * 
  * This test verifies:
  * - /quiz route is NOT wrapped in RequireAuth (public access)
- * - /profile and /journal routes REMAIN wrapped in RequireAuth (protected)
+ * - /profile route is NOT wrapped in RequireAuth (logged-out quiz results)
+ * - /journal route REMAINS wrapped in RequireAuth (protected)
  */
 describe("Quiz route accessibility", () => {
   it("should NOT wrap /quiz route in RequireAuth (logged-out users can take quiz)", () => {
@@ -48,21 +45,28 @@ describe("Quiz route accessibility", () => {
     }
   });
   
-  it("should keep /profile route wrapped in RequireAuth (protected)", () => {
+  it("should NOT wrap /profile route in RequireAuth (logged-out quiz results)", () => {
     const appPath = join(process.cwd(), "client", "src", "App.tsx");
     const appSource = readFileSync(appPath, "utf-8");
     
-    const profileRouteMatch = appSource.match(/<Route path="\/profile"[^>]*(?:\/>|>[\s\S]*?<\/Route>)/);
+    const profileRouteMatch = appSource.match(/<Route path="\/profile"[^/>]*\/?>/);
     
     expect(profileRouteMatch, "/profile route should exist").toBeTruthy();
     
     if (profileRouteMatch) {
       const profileRouteLine = profileRouteMatch[0];
       
-      // Profile should remain protected
+      // Profile should NOT contain RequireAuth wrapper
+      // This allows logged-out users to see their quiz results
       expect(
         profileRouteLine.includes("RequireAuth"),
-        "/profile route should remain wrapped in RequireAuth"
+        "/profile route must not be wrapped in RequireAuth - logged-out users need to see quiz results"
+      ).toBe(false);
+      
+      // It should reference the Profile component
+      expect(
+        profileRouteLine.includes("Profile"),
+        "/profile route should reference Profile component"
       ).toBe(true);
     }
   });
