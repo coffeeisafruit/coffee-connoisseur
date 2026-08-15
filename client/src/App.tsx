@@ -13,6 +13,9 @@ import Journal from "./pages/Journal";
 import Roasters from "./pages/Roasters";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import Pricing from "./pages/Pricing";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import CheckoutCancel from "./pages/CheckoutCancel";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -26,6 +29,10 @@ function Router() {
       <Route path="/journal">{() => <RequireAuth><Journal /></RequireAuth>}</Route>
       {/* Public: roaster list is public; submitting a review is gated at the action */}
       <Route path="/roasters" component={Roasters} />
+      {/* Payment pages */}
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/checkout/success" component={CheckoutSuccess} />
+      <Route path="/checkout/cancel" component={CheckoutCancel} />
       {/* Legal pages */}
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
