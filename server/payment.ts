@@ -10,7 +10,7 @@ export function getStripeInstance(): Stripe | null {
   
   if (!stripeInstance) {
     stripeInstance = new Stripe(ENV.stripeSecretKey, {
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: "2026-07-29.dahlia",
     });
   }
   
