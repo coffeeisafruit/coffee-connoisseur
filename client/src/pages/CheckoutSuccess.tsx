@@ -70,7 +70,7 @@ export default function CheckoutSuccess() {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground pt-2">
-                  A confirmation email has been sent to your inbox.
+                  You'll receive a receipt from Stripe via email.
                 </p>
               </CardContent>
             </Card>
