@@ -152,7 +152,7 @@ export default function Pricing() {
               <div>
                 <h3 className="font-semibold text-lg mb-2">Do you offer refunds?</h3>
                 <p className="text-muted-foreground">
-                  If you're not satisfied within the first 14 days, contact our support team for a full refund.
+                  If you're not satisfied within the first 14 days, contact us at <a href="mailto:privacy@coffeeconnoisseur.app" className="underline hover:text-foreground">privacy@coffeeconnoisseur.app</a> for a full refund.
                 </p>
               </div>
             </div>
