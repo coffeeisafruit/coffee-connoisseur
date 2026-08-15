@@ -7,6 +7,7 @@ import * as brewJournalDb from "./brewJournal";
 import * as userProfileDb from "./userProfile";
 import * as roastersDb from "./roasters";
 import { storagePut, storageDelete } from "./storage";
+import * as payment from "./payment";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -232,6 +233,16 @@ export const appRouter = router({
           ...input,
         });
         return { id: profileId };
+      }),
+  }),
+
+  // Payment router
+  payment: router({
+    createCheckoutSession: publicProcedure
+      .mutation(async ({ ctx }) => {
+        // Get the origin from the request
+        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/$/, "") || "";
+        return await payment.createCheckoutSession(origin);
       }),
   }),
 });

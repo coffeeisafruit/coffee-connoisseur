@@ -341,8 +341,8 @@ export default function Home() {
               <Button size="lg" className="text-lg" onClick={startQuiz}>
                 Take the Quiz
               </Button>
-              <Button size="lg" variant="outline" className="text-lg">
-                Learn More
+              <Button size="lg" variant="outline" className="text-lg" onClick={() => setLocation("/pricing")}>
+                View Pricing
               </Button>
             </div>
           </div>
@@ -366,23 +366,23 @@ export default function Home() {
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Roaster Partners</a></li>
+                <li><a href="/pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
+                <li><a href="/roasters" className="hover:text-foreground transition-colors">Roaster Partners</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Community</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Discord</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Events</a></li>
+                <li><span className="text-muted-foreground/50">Discord - Coming Soon</span></li>
+                <li><span className="text-muted-foreground/50">Blog - Coming Soon</span></li>
+                <li><span className="text-muted-foreground/50">Events - Coming Soon</span></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Contact</a></li>
+                <li><span className="text-muted-foreground/50">About - Coming Soon</span></li>
+                <li><span className="text-muted-foreground/50">Contact - Coming Soon</span></li>
                 <li><a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-foreground transition-colors">Terms</a></li>
               </ul>

@@ -21,4 +21,8 @@ export const ENV = {
   // Better Auth (migration M5): self-hosted email/password auth.
   betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "",
   betterAuthUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // Stripe payments
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
+  stripeStarterPriceId: process.env.STRIPE_STARTER_PRICE_ID ?? "",
 };
