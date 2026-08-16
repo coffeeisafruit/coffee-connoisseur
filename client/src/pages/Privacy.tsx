@@ -60,6 +60,13 @@ export default function Privacy() {
             <li>Usage analytics and performance metrics</li>
           </ul>
 
+          <h3>Analytics</h3>
+          <p>
+            We use PostHog for product analytics to understand how you use our service and improve your experience.
+            This includes page views, feature usage, and basic interaction data. PostHog processes this data
+            in accordance with their privacy policy.
+          </p>
+
           <h2>How We Use Your Information</h2>
           <p>
             We use the information we collect to:
